@@ -1,4 +1,4 @@
-name: Build APK & Release
+name: Build & Sign APKs
 
 on:
   push:
@@ -36,8 +36,26 @@ jobs:
 
       - run: chmod +x gradlew
 
-      - name: Build Debug + Release (parallel)
-        run: ./gradlew assembleDebug assembleRelease --parallel --build-cache --daemon
+      - name: Generate Temporary Keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore release.keystore \
+            -alias githubrelease \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass 123456 \
+            -keypass 123456 \
+            -dname "CN=GitHub, OU=CI, O=GitHub, L=San Francisco, ST=CA, C=US"
+
+      - name: Build and Sign APKs
+        run: |
+          ./gradlew assembleDebug assembleRelease \
+            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.password=123456 \
+            -Pandroid.injected.signing.key.alias=githubrelease \
+            -Pandroid.injected.signing.key.password=123456 \
+            --parallel --build-cache --daemon
 
       - name: Collect APKs
         run: |
@@ -58,9 +76,8 @@ jobs:
             echo "tag=v${{ github.run_number }}" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          fi
 
-      - name: Create Release
+      - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
