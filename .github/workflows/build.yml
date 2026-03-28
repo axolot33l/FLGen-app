@@ -36,10 +36,12 @@ jobs:
 
       - run: chmod +x gradlew
 
+      # ✅ Generate keystore in app/ folder
       - name: Generate Temporary Keystore
         run: |
+          mkdir -p app
           keytool -genkeypair -v \
-            -keystore release.keystore \
+            -keystore app/release.keystore \
             -alias githubrelease \
             -keyalg RSA \
             -keysize 2048 \
@@ -48,10 +50,11 @@ jobs:
             -keypass 123456 \
             -dname "CN=GitHub, OU=CI, O=GitHub, L=San Francisco, ST=CA, C=US"
 
+      # Build both APKs and sign them
       - name: Build and Sign APKs
         run: |
           ./gradlew assembleDebug assembleRelease \
-            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.file=app/release.keystore \
             -Pandroid.injected.signing.store.password=123456 \
             -Pandroid.injected.signing.key.alias=githubrelease \
             -Pandroid.injected.signing.key.password=123456 \
