@@ -6,6 +6,9 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,16 +41,33 @@ jobs:
           cp app/build/outputs/apk/debug/*.apk release/app-debug.apk || true
           cp app/build/outputs/apk/release/*.apk release/app-release.apk || true
 
+      - name: Create Tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git tag v${{ github.run_number }}
+          git push origin v${{ github.run_number }}
+
+      - name: Set Tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=v${{ github.run_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
           files: release/*.apk
           body: |
             # Download
 
             | Type | Download |
             |------|----------|
-            | Release | [Download](../../releases/download/${{ github.ref_name }}/app-release.apk) |
-            | Debug | [Download](../../releases/download/${{ github.ref_name }}/app-debug.apk) |
+            | Release | [Download](../../releases/download/${{ steps.tag.outputs.tag }}/app-release.apk) |
+            | Debug | [Download](../../releases/download/${{ steps.tag.outputs.tag }}/app-debug.apk) |
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
