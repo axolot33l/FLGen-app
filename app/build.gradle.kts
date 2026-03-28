@@ -1,8 +1,7 @@
 plugins {
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.compose) apply false
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
 }
-
 android {
     namespace = "fi.junixald.NutellaService"
     compileSdk = 35
@@ -20,9 +19,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("release.keystore") // <-- your pushed keystore in app/
-            storePassword = "YOUR_STORE_PASSWORD"
+            storePassword = "junixald"
             keyAlias = "axolot33l"
-            keyPassword = "YOUR_KEY_PASSWORD"
+            keyPassword = "junixald"
         }
     }
 
