@@ -1,3 +1,8 @@
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+}
+
 android {
     namespace = "fi.junixald.NutellaService"
     compileSdk = 35
