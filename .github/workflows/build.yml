@@ -43,22 +43,6 @@ jobs:
       - name: Build APKs
         run: ./gradlew assembleDebug assembleRelease --parallel --build-cache --daemon
 
-      - name: Sign APKs
-        run: |
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-            -keystore app/release.keystore \
-            -storepass junixald \
-            -keypass junixald \
-            app/build/outputs/apk/debug/app-debug.apk githubrelease
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-            -keystore app/release.keystore \
-            -storepass junixald \
-            -keypass junixald \
-            app/build/outputs/apk/release/app-release-unsigned.apk githubrelease
-          $ANDROID_HOME/build-tools/33.0.2/zipalign -v 4 \
-            app/build/outputs/apk/release/app-release-unsigned.apk \
-            app/build/outputs/apk/release/app-release.apk
-
       - name: Prepare release folder
         run: |
           mkdir -p release
