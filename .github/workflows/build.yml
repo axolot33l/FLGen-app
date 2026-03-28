@@ -1,0 +1,53 @@
+name: Build APK & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Build Debug
+        run: ./gradlew assembleDebug
+
+      - name: Build Release
+        run: ./gradlew assembleRelease
+
+      - name: Collect APKs
+        run: |
+          mkdir release
+          cp app/build/outputs/apk/debug/*.apk release/app-debug.apk || true
+          cp app/build/outputs/apk/release/*.apk release/app-release.apk || true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.apk
+          body: |
+            # Download
+
+            | Type | Download |
+            |------|----------|
+            | Release | [Download](../../releases/download/${{ github.ref_name }}/app-release.apk) |
+            | Debug | [Download](../../releases/download/${{ github.ref_name }}/app-debug.apk) |
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
