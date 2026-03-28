@@ -1,9 +1,9 @@
-name: Build & Sign APKs
+name: Build & Release APKs
 
 on:
   push:
     tags:
-      - "v*"
+      - "v*"  # Only runs on tags like v1.0
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -26,39 +27,21 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - uses: actions/setup-java@v4
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
           cache: gradle
 
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - run: chmod +x gradlew
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
 
-      # ✅ Generate keystore in app/ folder
-      - name: Generate Temporary Keystore
-        run: |
-          mkdir -p app
-          keytool -genkeypair -v \
-            -keystore app/release.keystore \
-            -alias githubrelease \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass 123456 \
-            -keypass 123456 \
-            -dname "CN=GitHub, OU=CI, O=GitHub, L=San Francisco, ST=CA, C=US"
-
-      # Build both APKs and sign them
-      - name: Build and Sign APKs
-        run: |
-          ./gradlew assembleDebug assembleRelease \
-            -Pandroid.injected.signing.store.file=app/release.keystore \
-            -Pandroid.injected.signing.store.password=123456 \
-            -Pandroid.injected.signing.key.alias=githubrelease \
-            -Pandroid.injected.signing.key.password=123456 \
-            --parallel --build-cache --daemon
+      - name: Build Debug + Release APKs
+        run: ./gradlew assembleDebug assembleRelease --parallel --build-cache --daemon
 
       - name: Collect APKs
         run: |
@@ -66,21 +49,16 @@ jobs:
           cp app/build/outputs/apk/debug/*.apk release/app-debug.apk || true
           cp app/build/outputs/apk/release/*.apk release/app-release.apk || true
 
-      - name: Create Tag
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          git tag v${{ github.run_number }}
-          git push origin v${{ github.run_number }}
-
-      - name: Set Tag
+      - name: Set Tag Name
         id: tag
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "tag=v${{ github.run_number }}" >> $GITHUB_OUTPUT
-          else
+          if [[ "${GITHUB_REF_NAME}" != "" ]]; then
             echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Upload Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -89,9 +67,9 @@ jobs:
           body: |
             # Download
 
-            | Type | Download |
-            |------|----------|
+            | Type    | Download |
+            |---------|----------|
             | Release | [Download](../../releases/download/${{ steps.tag.outputs.tag }}/app-release.apk) |
-            | Debug | [Download](../../releases/download/${{ steps.tag.outputs.tag }}/app-debug.apk) |
+            | Debug   | [Download](../../releases/download/${{ steps.tag.outputs.tag }}/app-debug.apk) |
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
