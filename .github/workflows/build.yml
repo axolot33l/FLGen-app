@@ -35,12 +35,12 @@ jobs:
             -keystore app/release.keystore \
             -storepass junixald \
             -keypass junixald \
-            app/build/outputs/apk/debug/app-debug.apk axolot33l
+            app/build/outputs/apk/debug/app-debug.apk githubrelease
           jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
             -keystore app/release.keystore \
             -storepass junixald \
             -keypass junixald \
-            app/build/outputs/apk/release/app-release-unsigned.apk axolot33l
+            app/build/outputs/apk/release/app-release-unsigned.apk githubrelease
           # Align release APK
           $ANDROID_HOME/build-tools/33.0.2/zipalign -v 4 \
             app/build/outputs/apk/release/app-release-unsigned.apk \
