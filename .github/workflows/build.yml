@@ -1,75 +1,60 @@
-name: Build & Release APKs
+name: Build & Sign APK
 
 on:
   push:
     tags:
-      - "v*"  # Only runs on tags like v1.0
+      - 'v*'
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-
-      - name: Setup JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Grant execute permission to gradlew
-        run: chmod +x gradlew
+      - name: Grant execute permission
+        run: chmod +x ./gradlew
 
-      - name: Build Debug + Release APKs
+      - name: Build APKs
         run: ./gradlew assembleDebug assembleRelease --parallel --build-cache --daemon
 
-      - name: Collect APKs
+      - name: Sign APKs
+        run: |
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+            -keystore app/release.keystore \
+            -storepass junixald \
+            -keypass junixald \
+            app/build/outputs/apk/debug/app-debug.apk axolot33l
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+            -keystore app/release.keystore \
+            -storepass junixald \
+            -keypass junixald \
+            app/build/outputs/apk/release/app-release-unsigned.apk axolot33l
+          # Align release APK
+          $ANDROID_HOME/build-tools/33.0.2/zipalign -v 4 \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
+            app/build/outputs/apk/release/app-release.apk
+
+      - name: Prepare release folder
         run: |
           mkdir release
-          cp app/build/outputs/apk/debug/*.apk release/app-debug.apk || true
-          cp app/build/outputs/apk/release/*.apk release/app-release.apk || true
+          cp app/build/outputs/apk/debug/app-debug.apk release/
+          cp app/build/outputs/apk/release/app-release.apk release/
 
-      - name: Set Tag Name
-        id: tag
-        run: |
-          if [[ "${GITHUB_REF_NAME}" != "" ]]; then
-            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=v${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Release ${{ steps.tag.outputs.tag }}
           files: release/*.apk
-          body: |
-            # Download
-
-            | Type    | Download |
-            |---------|----------|
-            | Release | [Download](../../releases/download/${{ steps.tag.outputs.tag }}/app-release.apk) |
-            | Debug   | [Download](../../releases/download/${{ steps.tag.outputs.tag }}/app-debug.apk) |
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
